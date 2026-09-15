@@ -1,0 +1,4 @@
+certfinder
+config.go
+*.db
+*xlsx*
