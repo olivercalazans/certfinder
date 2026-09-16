@@ -48,41 +48,19 @@ func fatal(msg string) {
 
 
 func (m *Main) getDomainsFromSubfinder() {
-	proc, err := subfinder.Run(BaseDomain)
-	
-	if err != "" { fatal(err) }
-	
-	if proc == nil || proc.ExitCode != 0 {
-		stderr := ""
-	
-		if proc != nil {
-			stderr = proc.Stderr
-		}
-	
-		fatal(fmt.Sprintf("subfinder failed: %.200s", stderr))
-	}
-	
-	if proc.Stderr != "" {
-		warn := proc.Stderr
-	
-		if len(warn) > 200 {
-			warn = warn[:200]
-		}
-	
-		fmt.Printf("[ warn ] subfinder stderr: %s\n", warn)
-	}
+	s := subfinder.Subfinder{}
 
-	domains, errSub := subfinder.Prune(proc, DomainsToRemove, BaseDomain)
-	
-	if errSub != nil {
-		fatal(errSub.Error())
+	domains, err := s.Run(BaseDomain, DomainsToRemove)
+
+	if err != nil {
+	    fatal(err.Error())
 	}
 
 	if len(domains) == 0 {
 		fatal("No subdomain found")
 	}
 
-	fmt.Printf("[+] subfinder: %d hosts found\n", len(domains))
+	fmt.Printf("[+] %d subdomains found\n", len(domains))
 
 	m.data = domains
 }

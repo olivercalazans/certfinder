@@ -15,118 +15,90 @@
 package subfinder
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"strings"
-	"time"
-)
 
-
-const (
-	Bin     = "subfinder"
-	Timeout = 300 * time.Second
+	"github.com/projectdiscovery/subfinder/v2/pkg/runner"
 )
 
 
 
-type Result struct {
-	Stdout   string
-	Stderr   string
-	ExitCode int
+type Subfinder struct {
+	baseDomain    string
+	subsToRemove  string
+	domains       map[string]struct{}
 }
 
 
 
-func Run(baseDomain string) (*Result, string) {
-	fmt.Printf("[+] Running subfinder: %s\n", baseDomain)
+func (s *Subfinder) Run(baseDomain, removePattern string) (map[string]struct{}, error) {
+	fmt.Printf("[+] Looking for %s subdomains\n", baseDomain)
 
-	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
-	defer cancel()
+	s.baseDomain   = baseDomain
+	s.subsToRemove = removePattern
 
-	cmd := exec.CommandContext(
-		ctx, Bin,
-		"-d", baseDomain,
-		"-silent",
-		"-json",
-		"-all",
-		"-timeout", "30",
-	)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return nil, "subfinder timeout. It was not able to get domain list"
-	}
-	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return nil, "subfinder command not found"
-		}
-
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return &Result{
-				Stdout:   stdout.String(),
-				Stderr:   stderr.String(),
-				ExitCode: exitErr.ExitCode(),
-			}, ""
-		}
-		
-		return nil, fmt.Sprintf("unknown error while executing subfinder: %v", err)
+	if err := s.runSubfinder(); err != nil {
+		return nil, err
 	}
 
-	return &Result{
-		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
-		ExitCode: 0,
-	}, ""
+	if err := s.prune(); err != nil {
+		return nil, err
+	}
+
+	return s.domains, nil
 }
 
 
 
-func Prune(proc *Result, removePattern, baseDomain string) (map[string]struct{}, error) {
-	re, err := regexp.Compile(removePattern)
+func (s *Subfinder) runSubfinder() error {
+	options := &runner.Options{
+		Threads            : 10,
+		Timeout            : 30,
+		MaxEnumerationTime : 10,
+		Silent             : true,
+		All                : true,
+	}
+
+	r, err := runner.NewRunner(options)
 	
 	if err != nil {
-		return nil, fmt.Errorf("invalid prune regex: %w", err)
+		return fmt.Errorf("failed to create runner: %w", err)
 	}
 
-	out := make(map[string]struct{})
+	raw, err := r.EnumerateSingleDomainWithCtx(
+		context.Background(),
+		s.baseDomain,
+		nil,
+	)
 
-	for _, line := range strings.Split(proc.Stdout, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		var obj struct {
-			Host string `json:"host"`
-		}
-		
-		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			continue
-		}
-
-		host := strings.ToLower(strings.TrimSpace(obj.Host))
-		
-		if host == "" || !strings.HasSuffix(host, baseDomain) {
-			continue
-		}
-		
-		if re.MatchString(host) {
-			continue
-		}
-
-		out[host] = struct{}{}
+	if err != nil {
+		return fmt.Errorf("enumeration failed: %w", err)
+	}
+	
+	s.domains = make(map[string]struct{}, len(raw))
+	for host := range raw {
+	    s.domains[host] = struct{}{}
 	}
 
-	return out, nil
+	return nil
+}
+
+
+
+func (s *Subfinder) prune() error {
+	re, err := regexp.Compile(s.subsToRemove)
+
+	if err != nil {
+		return fmt.Errorf("invalid prune regex: %w", err)
+	}
+
+	for host := range s.domains {
+		if !strings.HasSuffix(host, s.baseDomain) || re.MatchString(host) {
+			delete(s.domains, host)
+		}
+	}
+
+	return nil
 }
