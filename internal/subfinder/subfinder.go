@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package subfinder encapsulates subdomain enumeration and filtering.
 package subfinder
 
 import (
@@ -23,8 +24,7 @@ import (
 	"github.com/projectdiscovery/subfinder/v2/pkg/runner"
 )
 
-
-
+// Subfinder is a wrapper for executing the official Subfinder runner.
 type Subfinder struct {
 	baseDomain    string
 	subsToRemove  string
@@ -33,6 +33,8 @@ type Subfinder struct {
 
 
 
+// Run executes the subdomain enumeration and applies the configured prune filters.
+// It returns a set of unique, valid subdomains.
 func (s *Subfinder) Run(baseDomain, removePattern string) (map[string]struct{}, error) {
 	fmt.Printf("[+] Looking for %s subdomains\n", baseDomain)
 
@@ -43,7 +45,7 @@ func (s *Subfinder) Run(baseDomain, removePattern string) (map[string]struct{}, 
 		return nil, err
 	}
 
-	if err := s.prune(); err != nil {
+	if err := s.pruneDomains(); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +89,7 @@ func (s *Subfinder) runSubfinder() error {
 
 
 
-func (s *Subfinder) prune() error {
+func (s *Subfinder) pruneDomains() error {
 	re, err := regexp.Compile(s.subsToRemove)
 
 	if err != nil {

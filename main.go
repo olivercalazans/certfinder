@@ -57,7 +57,7 @@ func (m *Main) getDomainsFromSubfinder() {
 	}
 
 	if len(domains) == 0 {
-		fatal("No subdomain found")
+		fatal("no subdomain found")
 	}
 
 	fmt.Printf("[+] %d subdomains found\n", len(domains))
