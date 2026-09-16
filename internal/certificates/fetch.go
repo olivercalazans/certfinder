@@ -26,12 +26,13 @@ import (
 )
 
 
+
 func fetchCertDER(host string, port int, verify, permissive bool) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout)
 	defer cancel()
 
 	dialer := &net.Dialer{Timeout: Timeout}
-	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	addr   := net.JoinHostPort(host, strconv.Itoa(port))
 
 	rawConn, err := dialer.DialContext(ctx, "tcp4", addr)
 	if err != nil {
@@ -39,11 +40,12 @@ func fetchCertDER(host string, port int, verify, permissive bool) ([]byte, error
 	}
 
 	cfg := &tls.Config{
-		ServerName:         host,
-		InsecureSkipVerify: !verify,
+		ServerName         : host,
+		InsecureSkipVerify : !verify,
 	}
+
 	if permissive {
-		cfg.MinVersion = tls.VersionTLS10
+		cfg.MinVersion   = tls.VersionTLS10
 		cfg.CipherSuites = permissiveCiphers
 	}
 
@@ -58,8 +60,11 @@ func fetchCertDER(host string, port int, verify, permissive bool) ([]byte, error
 	if len(state.PeerCertificates) == 0 {
 		return nil, errors.New("no peer certificates")
 	}
+
 	return state.PeerCertificates[0].Raw, nil
 }
+
+
 
 // HTTP check (port 80)
 type httpCheckResult struct {
@@ -77,8 +82,8 @@ func checkHTTP(host string) httpCheckResult {
 			return http.ErrUseLastResponse
 		},
 		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout: Timeout,
+			DialContext: (
+				&net.Dialer{ Timeout: Timeout,
 			}).DialContext,
 		},
 	}
@@ -90,17 +95,25 @@ func checkHTTP(host string) httpCheckResult {
 		u := fmt.Sprintf("http://%s%s", currentHost, currentPath)
 
 		req, err := http.NewRequest("HEAD", u, nil)
-		if err != nil { return httpCheckResult{Kind: "no_response"} }
+		if err != nil {
+			return httpCheckResult{Kind: "no_response"}
+		}
 
 		resp, err := client.Do(req)
-		if err != nil { return httpCheckResult{Kind: "no_response"} }
+		if err != nil { 
+			return httpCheckResult{Kind: "no_response"} 
+		}
 		resp.Body.Close()
 
 		location := resp.Header.Get("Location")
-		if location == "" { return httpCheckResult{Kind: "http_only", Host: currentHost, Port: HTTPPort} }
+		if location == "" { 
+			return httpCheckResult{Kind: httpOnly, Host: currentHost, Port: HTTPPort} 
+		}
 
 		parsed, err := url.Parse(location)
-		if err != nil { return httpCheckResult{Kind: "http_only", Host: currentHost, Port: HTTPPort} }
+		if err != nil { 
+			return httpCheckResult{Kind: httpOnly, Host: currentHost, Port: HTTPPort} 
+		}
 
 		if parsed.Scheme == "https" {
 			nextHost := parsed.Hostname()
@@ -115,7 +128,7 @@ func checkHTTP(host string) httpCheckResult {
 				}
 			}
 			
-			return httpCheckResult{Kind: "redirect", Host: nextHost, Port: nextPort}
+			return httpCheckResult{Kind: redirect, Host: nextHost, Port: nextPort}
 		}
 
 		if parsed.Scheme == "" || parsed.Scheme == "http" {
@@ -130,8 +143,8 @@ func checkHTTP(host string) httpCheckResult {
 			continue
 		}
 
-		return httpCheckResult{Kind: "http_only", Host: currentHost, Port: HTTPPort}
+		return httpCheckResult{Kind: httpOnly, Host: currentHost, Port: HTTPPort}
 	}
 
-	return httpCheckResult{Kind: "http_only", Host: currentHost, Port: HTTPPort}
+	return httpCheckResult{Kind: httpOnly, Host: currentHost, Port: HTTPPort}
 }

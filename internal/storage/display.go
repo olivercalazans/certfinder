@@ -30,6 +30,9 @@ func intOrZero(v interface{}) int64 {
 
 
 
+// DisplayStats prints a one-line summary of the database: total hosts,
+// certificates in OK state, in alert (expiring within 30 days), already
+// expired, and entries with a non-empty error field.
 func DisplayStats() {
 	s, err := getStats()
 
@@ -38,10 +41,11 @@ func DisplayStats() {
 		return
 	}
 
-	total := intOrZero(s["total"])
+	total   := intOrZero(s["total"])
 	expired := intOrZero(s["expirados"])
-	alert := intOrZero(s["alerta"])
-	errors := intOrZero(s["erros"])
+	alert   := intOrZero(s["alerta"])
+	errors  := intOrZero(s["erros"])
+	
 	ok := total - expired - alert - errors
 
 	fmt.Printf(
@@ -52,6 +56,9 @@ func DisplayStats() {
 
 
 
+// DisplayAlerts prints every host whose certificate is expired, in alert,
+// or that currently holds an error, ordered by urgency (expired first, then
+// by remaining days). One line per host.
 func DisplayAlerts() {
 	alerts, err := getAlerts()
 	if err != nil {
@@ -90,6 +97,10 @@ func DisplayAlerts() {
 
 
 
+// DisplayStale prints hosts whose last_seen is older than the given number
+// of days — typically indicating subdomains that the enumeration step stopped
+// returning. Output is capped at limit rows; the remainder is summarized
+// with a trailing count.
 func DisplayStale(days int, limit int) {
 	stale, err := getStale(days)
 	if err != nil {

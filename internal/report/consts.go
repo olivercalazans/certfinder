@@ -12,30 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package certificates
+package report
 
-import (
-	"crypto/tls"
-	"time"
-)
 
 const (
-	Port         = 443
-	HTTPPort     = 80
-	Timeout      = 5 * time.Second
-	MaxRedirects = 5
-	MaxWorkers   = 20
-
-	redirect = "redirect"
-	httpOnly = "http_only"
+	sheetName    = "Certificates"
+	defaultPath  = "certificates.xlsx"
+	firstDataRow = 2 // row 1 is the header
 )
 
-var permissiveCiphers = []uint16{
-	tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-	tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-	tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-	tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-	tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+var headers = []string{
+	"Domain",
+	"Common Name",
+	"Not Before",
+	"Not After",
+	"Days Remaining",
+	"Issuer",
+	"Cert Type",
 }
+
+var columnWidths = []float64{45, 30, 14, 14, 16, 35, 16}

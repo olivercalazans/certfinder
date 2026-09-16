@@ -68,7 +68,11 @@ func (m *Main) getDomainsFromSubfinder() {
 
 
 func (m *Main) getCertInfo() {
-	info := certificates.GetDomainListCertInfo(m.data)
+	info, err := certificates.GetCertInfo(m.data)
+
+	if err != nil {
+		fatal(err.Error())
+	}
 
 	if err := storage.UpsertDomains(info); err != nil {
 		fatal(err.Error())

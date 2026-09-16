@@ -23,33 +23,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const DBPath = "certificates.db"
 
-const schema = `
-CREATE TABLE IF NOT EXISTS certificates (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    name            TEXT    NOT NULL UNIQUE,
-    error           TEXT    NOT NULL DEFAULT '',
-    issuer          TEXT    NOT NULL DEFAULT '',
-    cert_type       TEXT    NOT NULL DEFAULT '',
-    common_name     TEXT    NOT NULL DEFAULT '',
-    not_before      TEXT,
-    not_after       TEXT,
-    remaining_days  INTEGER NOT NULL DEFAULT 0,
-    expired         INTEGER NOT NULL DEFAULT 0,
-    alert           INTEGER NOT NULL DEFAULT 0,
-    first_seen      TEXT    NOT NULL,
-    last_seen       TEXT    NOT NULL,
-    last_checked    TEXT    NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_remaining ON certificates(remaining_days);
-CREATE INDEX IF NOT EXISTS idx_alert     ON certificates(alert);
-CREATE INDEX IF NOT EXISTS idx_expired   ON certificates(expired);
-CREATE INDEX IF NOT EXISTS idx_last_seen ON certificates(last_seen);
-`
-
-func InitDB() (*sql.DB, error) {
+func initDB() (*sql.DB, error) {
 	db, err := sql.Open("sqlite", DBPath)
 	if err != nil {
 		return nil, err
@@ -76,7 +51,7 @@ func boolToInt(b bool) int {
 }
 
 func UpsertDomains(domains []models.Domain) error {
-	db, err := InitDB()
+	db, err := initDB()
 	if err != nil {
 		return err
 	}
@@ -131,7 +106,7 @@ func UpsertDomains(domains []models.Domain) error {
 }
 
 func fetchRows(query string, args ...interface{}) ([]map[string]interface{}, error) {
-	db, err := InitDB()
+	db, err := initDB()
 	if err != nil {
 		return nil, err
 	}
@@ -166,43 +141,3 @@ func fetchRows(query string, args ...interface{}) ([]map[string]interface{}, err
 	}
 	return out, rows.Err()
 }
-
-func getStats() (map[string]interface{}, error) {
-	rows, err := fetchRows(`
-		SELECT
-			COUNT(*)                   AS total,
-			SUM(expired)               AS expirados,
-			SUM(alert AND NOT expired) AS alerta,
-			SUM(error != '')           AS erros,
-			AVG(remaining_days)        AS media_dias,
-			MIN(last_seen)             AS visto_mais_antigo
-		FROM certificates
-	`)
-	if err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
-		return map[string]interface{}{}, nil
-	}
-	return rows[0], nil
-}
-
-func getAlerts() ([]map[string]interface{}, error) {
-	return fetchRows(`
-		SELECT name, issuer, cert_type, not_after, remaining_days,
-		       expired, alert, error, last_seen
-		FROM certificates
-		WHERE expired = 1 OR alert = 1 OR error != ''
-		ORDER BY expired DESC, remaining_days ASC
-	`)
-}
-
-func getStale(days int) ([]map[string]interface{}, error) {
-	return fetchRows(`
-		SELECT name, issuer, not_after, remaining_days, last_seen
-		FROM certificates
-		WHERE julianday('now') - julianday(last_seen) >= ?
-		ORDER BY last_seen ASC
-	`, days)
-}
-
