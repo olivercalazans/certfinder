@@ -16,9 +16,10 @@ package main
 
 import (
 	"fmt"
-	"os"
 
+	"certfinder/internal/argparser"
 	"certfinder/internal/certificates"
+	"certfinder/internal/display"
 	"certfinder/internal/report"
 	"certfinder/internal/storage"
 	"certfinder/internal/subfinder"
@@ -28,39 +29,47 @@ import (
 
 func main() {
 	m := Main{}
+	m.execute()
+}
+
+
+
+type Main struct {
+	args  *argparser.Arguments
+	data   map[string]struct{}
+}
+
+
+
+func (m *Main) execute() {
+	m.getArgs()
 	m.getDomainsFromSubfinder()
 	m.getCertInfo()
 }
 
 
 
-type Main struct {
-	data map[string]struct{}
-}
-
-
-
-func fatal(msg string) {
-	fmt.Fprintf(os.Stderr, "[ ERR ] %s\n", msg)
-	os.Exit(1)
+func (m *Main) getArgs() {
+	ap     := argparser.NewParser()
+	m.args  = ap.GetArgs()
 }
 
 
 
 func (m *Main) getDomainsFromSubfinder() {
-	s := subfinder.Subfinder{}
-
-	domains, err := s.Run(BaseDomain, DomainsToRemove)
+	s := subfinder.NewSubfinder(m.args)
+	
+	domains, err := s.Run()
 
 	if err != nil {
-	    fatal(err.Error())
+	    display.Fatal(err)
 	}
 
 	if len(domains) == 0 {
-		fatal("no subdomain found")
+		display.Fatal(fmt.Errorf("no subdomain found"))
 	}
 
-	fmt.Printf("[+] %d subdomains found\n", len(domains))
+	fmt.Printf("[*] %d subdomains found\n", len(domains))
 
 	m.data = domains
 }
@@ -71,11 +80,11 @@ func (m *Main) getCertInfo() {
 	info, err := certificates.GetCertInfo(m.data)
 
 	if err != nil {
-		fatal(err.Error())
+	    display.Fatal(err)
 	}
 
 	if err := storage.UpsertDomains(info); err != nil {
-		fatal(err.Error())
+	    display.Fatal(err)
 	}
 
 	storage.DisplayStats()
@@ -83,6 +92,6 @@ func (m *Main) getCertInfo() {
 	storage.DisplayStale(7, 20)
 
 	if err := report.ExportXLSX("certificates.xlsx"); err != nil {
-		fatal(err.Error())
+	    display.Fatal(err)
 	}
 }
