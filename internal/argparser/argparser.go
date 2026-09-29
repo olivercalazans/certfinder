@@ -26,14 +26,14 @@ import (
 
 
 type Arguments struct {
-	BaseDomain    string
-	DomsToRemove  []string
+	BaseDomain     string
+	DomsToRemove   []string
+	ExcelFilePath  string
 }
 
 
 
 type ArgParser struct {
-	args     *Arguments
 	parser   *pflag.FlagSet
 	errList   []error
 	parsedArgs
@@ -59,11 +59,13 @@ func (ap *ArgParser) GetArgs() *Arguments {
 	}
 
 	args := &Arguments{
-		BaseDomain   : ap.validBaseDomain(),
-		DomsToRemove : ap.domsToRemove,
+		BaseDomain    : ap.validBaseDomain(),
+		DomsToRemove  : ap.domsToRemove,
+		ExcelFilePath : ap.excelFilePath,
 	}
 
 	ap.displayError()
+
 	return args
 }
 

@@ -14,7 +14,10 @@
 
 package argparser
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 
 
@@ -25,4 +28,22 @@ func (ap *ArgParser) validBaseDomain() string {
 	}
 	
 	return ap.baseDomain
+}
+
+
+
+func (ap *ArgParser) valideExcelFilePath() string {
+	info, err := os.Stat(ap.excelFilePath)
+
+	if err != nil {
+		ap.addErr(fmt.Errorf("Failed to validate file path: %s", err))
+		return ""
+	}
+	
+	if info.IsDir() {
+		ap.addErr(fmt.Errorf("The file %s is a directory", ap.excelFilePath))
+		return ""
+	}
+
+	return ap.excelFilePath
 }

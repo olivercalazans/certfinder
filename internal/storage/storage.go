@@ -24,31 +24,40 @@ import (
 )
 
 
+
 func initDB() (*sql.DB, error) {
 	db, err := sql.Open("sqlite", DBPath)
 	if err != nil {
 		return nil, err
 	}
+
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, err
 	}
+	
 	return db, nil
 }
 
-func dtToStr(t *time.Time) interface{} {
+
+
+func dtToStr(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
+
 	return t.UTC().Format(time.RFC3339)
 }
 
+
+
 func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
+	if b { return 1 }
+	
 	return 0
 }
+
+
 
 func UpsertDomains(domains []models.Domain) error {
 	db, err := initDB()
@@ -97,6 +106,7 @@ func UpsertDomains(domains []models.Domain) error {
 			boolToInt(d.Expired), boolToInt(d.Alert),
 			now, now, now,
 		)
+
 		if err != nil {
 			return err
 		}
@@ -105,8 +115,11 @@ func UpsertDomains(domains []models.Domain) error {
 	return tx.Commit()
 }
 
-func fetchRows(query string, args ...interface{}) ([]map[string]interface{}, error) {
+
+
+func fetchRows(query string, args ...any) ([]map[string]any, error) {
 	db, err := initDB()
+	
 	if err != nil {
 		return nil, err
 	}
@@ -123,21 +136,28 @@ func fetchRows(query string, args ...interface{}) ([]map[string]interface{}, err
 		return nil, err
 	}
 
-	var out []map[string]interface{}
+	var out []map[string]any
+
 	for rows.Next() {
-		vals := make([]interface{}, len(cols))
-		ptrs := make([]interface{}, len(cols))
+		vals := make([]any, len(cols))
+		ptrs := make([]any, len(cols))
+	
 		for i := range vals {
 			ptrs[i] = &vals[i]
 		}
+	
 		if err := rows.Scan(ptrs...); err != nil {
 			return nil, err
 		}
-		row := make(map[string]interface{}, len(cols))
+	
+		row := make(map[string]any, len(cols))
+	
 		for i, c := range cols {
 			row[c] = vals[i]
 		}
+	
 		out = append(out, row)
 	}
+	
 	return out, rows.Err()
 }

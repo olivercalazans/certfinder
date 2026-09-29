@@ -65,10 +65,6 @@ func getStale(days int) ([]map[string]interface{}, error) {
 
 
 
-// QueryCertificates returns all rows from the certificates table, already
-// ordered by urgency (expired, alert, healthy, then failures by name).
-//
-// The caller is responsible for closing the returned *sql.Rows.
 func QueryCertificates() (*sql.Rows, error) {
 	db, err := initDB()
 	if err != nil {

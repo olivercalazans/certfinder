@@ -20,6 +20,7 @@ import (
 	"certfinder/internal/argparser"
 	"certfinder/internal/certificates"
 	"certfinder/internal/display"
+	"certfinder/internal/models"
 	"certfinder/internal/report"
 	"certfinder/internal/storage"
 	"certfinder/internal/subfinder"
@@ -45,6 +46,7 @@ func (m *Main) execute() {
 	m.getArgs()
 	m.getDomainsFromSubfinder()
 	m.getCertInfo()
+	m.writeExcel()
 }
 
 
@@ -82,7 +84,13 @@ func (m *Main) getCertInfo() {
 	if err != nil {
 	    display.Fatal(err)
 	}
+	
+	updateDatabase(info)
+}
 
+
+
+func updateDatabase(info []models.Domain) {
 	if err := storage.UpsertDomains(info); err != nil {
 	    display.Fatal(err)
 	}
@@ -90,8 +98,18 @@ func (m *Main) getCertInfo() {
 	storage.DisplayStats()
 	storage.DisplayAlerts()
 	storage.DisplayStale(7, 20)
+}
 
-	if err := report.ExportXLSX("certificates.xlsx"); err != nil {
+
+
+func (m *Main) writeExcel() {
+	if m.args.ExcelFilePath == "" {
+		return
+	}
+
+	if err := report.ExportXLSX(m.args.ExcelFilePath); err != nil {
 	    display.Fatal(err)
 	}
+
+	fmt.Printf("[i] Excel created in %s\n", m.args.ExcelFilePath)
 }

@@ -25,6 +25,8 @@ import (
 type parsedArgs struct {
 	baseDomain    string
 	domsToRemove  []string
+	excelFilePath    string
+	writeDB       bool
 }
 
 
@@ -40,6 +42,18 @@ func (ap *ArgParser) createArgs() {
 		ap.parser.PrintDefaults()
 	}
 
-	ap.parser.StringVarP(&ap.baseDomain, "domain", "d","", "Base URL (required)")
-	ap.parser.StringArrayVarP(&ap.domsToRemove, "remove", "r", nil, "Drop domains with one of the informed strings")
+	ap.parser.StringVarP(
+		&ap.baseDomain, "domain", "d","", 
+		"Base URL (required)",
+	)
+	
+	ap.parser.StringArrayVarP(
+		&ap.domsToRemove, "remove", "r", nil, 
+		"Drop domains with one of the informed strings",
+	)
+
+	ap.parser.StringVarP(
+		&ap.excelFilePath, "excel", "E", "",
+		"Export the results to Excel",
+	)
 }
