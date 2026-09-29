@@ -18,21 +18,20 @@ import "fmt"
 
 
 
-func intOrZero(v interface{}) int64 {
+func intOrZero(v any) int64 {
 	if v == nil {
 		return 0
 	}
+
 	if n, ok := v.(int64); ok {
 		return n
 	}
+
 	return 0
 }
 
 
 
-// DisplayStats prints a one-line summary of the database: total hosts,
-// certificates in OK state, in alert (expiring within 30 days), already
-// expired, and entries with a non-empty error field.
 func DisplayStats() {
 	s, err := getStats()
 
@@ -56,9 +55,6 @@ func DisplayStats() {
 
 
 
-// DisplayAlerts prints every host whose certificate is expired, in alert,
-// or that currently holds an error, ordered by urgency (expired first, then
-// by remaining days). One line per host.
 func DisplayAlerts() {
 	alerts, err := getAlerts()
 	if err != nil {
@@ -97,10 +93,6 @@ func DisplayAlerts() {
 
 
 
-// DisplayStale prints hosts whose last_seen is older than the given number
-// of days — typically indicating subdomains that the enumeration step stopped
-// returning. Output is capped at limit rows; the remainder is summarized
-// with a trailing count.
 func DisplayStale(days int, limit int) {
 	stale, err := getStale(days)
 	if err != nil {

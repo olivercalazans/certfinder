@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	github.com/projectdiscovery/subfinder/v2 v2.16.0
+	github.com/spf13/pflag v1.0.10
 	github.com/xuri/excelize/v2 v2.11.0
 	modernc.org/sqlite v1.59.0
 )

@@ -16,6 +16,7 @@
 package subfinder
 
 import (
+	"certfinder/internal/argparser"
 	"context"
 	"fmt"
 	"regexp"
@@ -24,22 +25,24 @@ import (
 	"github.com/projectdiscovery/subfinder/v2/pkg/runner"
 )
 
-// Subfinder is a wrapper for executing the official Subfinder runner.
+
+
 type Subfinder struct {
-	baseDomain    string
-	subsToRemove  string
-	domains       map[string]struct{}
+	args     *argparser.Arguments
+	domains   map[string]struct{}
 }
 
 
 
-// Run executes the subdomain enumeration and applies the configured prune filters.
-// It returns a set of unique, valid subdomains.
-func (s *Subfinder) Run(baseDomain, removePattern string) (map[string]struct{}, error) {
-	fmt.Printf("[+] Looking for %s subdomains\n", baseDomain)
+func NewSubfinder(args *argparser.Arguments) *Subfinder {
+	s := &Subfinder{ args: args }
+	return s
+}
 
-	s.baseDomain   = baseDomain
-	s.subsToRemove = removePattern
+
+
+func (s *Subfinder) Run() (map[string]struct{}, error) {
+	fmt.Printf("[+] Looking for %s subdomains\n", s.args.BaseDomain)
 
 	if err := s.runSubfinder(); err != nil {
 		return nil, err
@@ -71,7 +74,7 @@ func (s *Subfinder) runSubfinder() error {
 
 	raw, err := r.EnumerateSingleDomainWithCtx(
 		context.Background(),
-		s.baseDomain,
+		s.args.BaseDomain,
 		nil,
 	)
 
@@ -90,17 +93,38 @@ func (s *Subfinder) runSubfinder() error {
 
 
 func (s *Subfinder) pruneDomains() error {
-	re, err := regexp.Compile(s.subsToRemove)
+	if s.args.DomsToRemove == nil {
+		return nil
+	}
+
+	re, err := s.sliceToRegex()
 
 	if err != nil {
 		return fmt.Errorf("invalid prune regex: %w", err)
 	}
 
 	for host := range s.domains {
-		if !strings.HasSuffix(host, s.baseDomain) || re.MatchString(host) {
+		if !strings.HasSuffix(host, s.args.BaseDomain) || re.MatchString(host) {
 			delete(s.domains, host)
 		}
 	}
 
 	return nil
+}
+
+
+
+func (s *Subfinder) sliceToRegex() (*regexp.Regexp, error) {
+	if len(s.args.DomsToRemove) == 0 {
+		return nil, fmt.Errorf("cannot create regex from an empty slice")
+	}
+
+	escapedElements := make([]string, len(s.args.DomsToRemove))
+	for i, el := range s.args.DomsToRemove {
+		escapedElements[i] = regexp.QuoteMeta(el)
+	}
+
+	pattern := "(?:" + strings.Join(escapedElements, "|") + ")"
+
+	return regexp.Compile(pattern)
 }

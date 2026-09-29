@@ -16,9 +16,11 @@ package main
 
 import (
 	"fmt"
-	"os"
 
+	"certfinder/internal/argparser"
 	"certfinder/internal/certificates"
+	"certfinder/internal/display"
+	"certfinder/internal/models"
 	"certfinder/internal/report"
 	"certfinder/internal/storage"
 	"certfinder/internal/subfinder"
@@ -28,39 +30,48 @@ import (
 
 func main() {
 	m := Main{}
-	m.getDomainsFromSubfinder()
-	m.getCertInfo()
+	m.execute()
 }
 
 
 
 type Main struct {
-	data map[string]struct{}
+	args  *argparser.Arguments
+	data   map[string]struct{}
 }
 
 
 
-func fatal(msg string) {
-	fmt.Fprintf(os.Stderr, "[ ERR ] %s\n", msg)
-	os.Exit(1)
+func (m *Main) execute() {
+	m.getArgs()
+	m.getDomainsFromSubfinder()
+	m.getCertInfo()
+	m.writeExcel()
+}
+
+
+
+func (m *Main) getArgs() {
+	ap     := argparser.NewParser()
+	m.args  = ap.GetArgs()
 }
 
 
 
 func (m *Main) getDomainsFromSubfinder() {
-	s := subfinder.Subfinder{}
-
-	domains, err := s.Run(BaseDomain, DomainsToRemove)
+	s := subfinder.NewSubfinder(m.args)
+	
+	domains, err := s.Run()
 
 	if err != nil {
-	    fatal(err.Error())
+	    display.Fatal(err)
 	}
 
 	if len(domains) == 0 {
-		fatal("no subdomain found")
+		display.Fatal(fmt.Errorf("no subdomain found"))
 	}
 
-	fmt.Printf("[+] %d subdomains found\n", len(domains))
+	fmt.Printf("[*] %d subdomains found\n", len(domains))
 
 	m.data = domains
 }
@@ -71,18 +82,34 @@ func (m *Main) getCertInfo() {
 	info, err := certificates.GetCertInfo(m.data)
 
 	if err != nil {
-		fatal(err.Error())
+	    display.Fatal(err)
 	}
+	
+	updateDatabase(info)
+}
 
+
+
+func updateDatabase(info []models.Domain) {
 	if err := storage.UpsertDomains(info); err != nil {
-		fatal(err.Error())
+	    display.Fatal(err)
 	}
 
 	storage.DisplayStats()
 	storage.DisplayAlerts()
 	storage.DisplayStale(7, 20)
+}
 
-	if err := report.ExportXLSX("certificates.xlsx"); err != nil {
-		fatal(err.Error())
+
+
+func (m *Main) writeExcel() {
+	if m.args.ExcelFilePath == "" {
+		return
 	}
+
+	if err := report.ExportXLSX(m.args.ExcelFilePath); err != nil {
+	    display.Fatal(err)
+	}
+
+	fmt.Printf("[i] Excel created in %s\n", m.args.ExcelFilePath)
 }
